@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from db.database import Base
 from enum import Enum as PyEnum
@@ -25,6 +25,7 @@ class User(Timestamp):
     age = Column(Integer, nullable=False)
     intro = Column(Text, nullable=False)
     email = Column(String(50), nullable=False)
+    scraps = relationship("Scrap", back_populates="user", cascade="all, delete-orphan")
 
 
 class Book(Timestamp):
@@ -52,6 +53,21 @@ class Sentence(Timestamp):
         foreign_keys=[after_id],
         remote_side=[id],
         uselist=False
+    )
+    scraps = relationship("Scrap", back_populates="sentence", cascade="all, delete-orphan")
+
+class Scrap(Timestamp):
+    __tablename__ = "scraps"
+
+    id = Column(BIGINT, primary_key=True, autoincrement=True, index=True)
+    user_id = Column(BIGINT, ForeignKey("users.id"), nullable=False)
+    sentence_id = Column(BIGINT, ForeignKey("sentences.id"), nullable=False)
+
+    user = relationship("User", back_populates="scraps")
+    sentence = relationship("Sentence", back_populates="scraps")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sentence_id", name="uq_scrap_user_sentence"),
     )
 
 class SentenceLikeUserMapping(Timestamp):
