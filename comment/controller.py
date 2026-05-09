@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from comment.repository import CommentRepository, PostgresqlCommentRepository
 from comment.schemas import CommentCreate, CommentResponse, SubCommentCreate, SubCommentResponse
 from comment.service import CommentService
+from alarm.repository import AlarmRepository, PostgresqlAlarmRepository
+from alarm.service import AlarmService
 from db.database import get_db
 
 router = APIRouter(prefix="/sentences", tags=["comments"])
@@ -67,11 +69,22 @@ def get_comment_repository(db: Session = Depends(get_db)) -> CommentRepository:
     """Provide a repository wired with the active DB session."""
     return PostgresqlCommentRepository(db)
 
+def get_alarm_repository(db: Session = Depends(get_db)) -> AlarmRepository:
+    """Provide an alarm repository wired with the active DB session."""
+    return PostgresqlAlarmRepository(db)
+
+def get_alarm_service(
+    repository: AlarmRepository = Depends(get_alarm_repository),
+) -> AlarmService:
+    """Provide an AlarmService using the repository abstraction."""
+    return AlarmService(repository)
+
 def get_comment_service(
     repository: CommentRepository = Depends(get_comment_repository),
+    alarm_service: AlarmService = Depends(get_alarm_service),
 ) -> CommentService:
-    """Provide a CommentService using the repository abstraction."""
-    return CommentService(repository)
+    """Provide a CommentService with alarm notification support."""
+    return CommentService(repository, alarm_service)
 
 def get_comment_controller(
     service: CommentService = Depends(get_comment_service),

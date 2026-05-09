@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, Boolean, func
 from sqlalchemy.orm import relationship
 from db.database import Base
 from enum import Enum as PyEnum
@@ -16,6 +16,11 @@ class Gender(PyEnum):
     MALE = "male"
     FEMALE = "female"
 
+class AlarmType(PyEnum):
+    LIKE = "like"
+    COMMENT = "comment"
+    NEW_CHAPTER = "new_chapter"
+
 class User(Timestamp):
     __tablename__ = "users"
 
@@ -26,6 +31,7 @@ class User(Timestamp):
     intro = Column(Text, nullable=False)
     email = Column(String(50), nullable=False)
     scraps = relationship("Scrap", back_populates="user", cascade="all, delete-orphan")
+    alarms = relationship("Alarm", back_populates="user", cascade="all, delete-orphan")
 
 
 class Book(Timestamp):
@@ -105,6 +111,18 @@ class CommentLikeUserMap(Timestamp):
 
     comment_id = Column(BIGINT, ForeignKey("comments.id"), primary_key=True)
     user_id = Column(BIGINT, ForeignKey("users.id"), primary_key=True)
+
+class Alarm(Timestamp):
+    __tablename__ = "alarms"
+
+    id = Column(BIGINT, primary_key=True, autoincrement=True, index=True)
+    user_id = Column(BIGINT, ForeignKey("users.id"), nullable=False)
+    type = Column(Enum(AlarmType), nullable=False)
+    content = Column(String, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    target_url = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="alarms")
 
 
 
