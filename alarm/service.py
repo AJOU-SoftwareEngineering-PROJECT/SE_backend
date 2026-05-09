@@ -15,7 +15,8 @@ class AlarmService:
         user_id: int,
         alarm_type: AlarmType,
         content: str,
-        target_url: str = None
+        target_url: str = None,
+        sender_name: str = None,
     ) -> Alarm:
         """
         Create a single alarm for a user.
@@ -29,14 +30,20 @@ class AlarmService:
         Returns:
             Created Alarm entity
         """
+        formatted_content = self._build_content(content, sender_name)
         alarm_data = {
             "user_id": user_id,
             "type": alarm_type,
-            "content": content,
+            "content": formatted_content,
             "target_url": target_url,
             "is_read": False,
         }
         return self.repository.create(alarm_data)
+
+    def _build_content(self, content: str, sender_name: str | None) -> str:
+        if sender_name:
+            return f"{sender_name}님이 {content}"
+        return content
 
     def create_alarms_bulk(
         self,

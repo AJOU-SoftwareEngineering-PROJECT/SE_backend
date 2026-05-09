@@ -10,6 +10,8 @@ from post.repository import (
     PostgresqlSentenceRepository,
     SentenceRepository,
 )
+from alarm.repository import AlarmRepository, PostgresqlAlarmRepository
+from alarm.service import AlarmService
 from post.schemas import (
     AddSentenceRequest,
     AddSentenceResponse,
@@ -19,10 +21,11 @@ from post.schemas import (
     ModifySentenceRequest,
     PostChapterCreate,
     PostChapterResponse,
+    BookResponse,
 )
 from post.service import PostService
 
-router = APIRouter(prefix="/book", tags=["books"])
+router = APIRouter(prefix="/books", tags=["books"])
 
 class PostController:
     def __init__(self, service: PostService):
@@ -42,6 +45,12 @@ class PostController:
     def delete_sentence(self, dto: DeleteSenteceRequest):
         self.service.delete_sentence(dto)
 
+    def search_books(self, query: str):
+        return self.service.search_books(query)
+
+    def get_ranked_books(self):
+        return self.service.get_ranked_books()
+
 def get_sentence_repository(db: Session = Depends(get_db)) -> SentenceRepository:
     return PostgresqlSentenceRepository(db)
 
@@ -50,11 +59,22 @@ def get_book_repository(db: Session = Depends(get_db)) -> BookRepository:
     return PostgresqlBookRepository(db)
 
 
+def get_alarm_repository(db: Session = Depends(get_db)) -> AlarmRepository:
+    return PostgresqlAlarmRepository(db)
+
+
+def get_alarm_service(
+    repository: AlarmRepository = Depends(get_alarm_repository),
+) -> AlarmService:
+    return AlarmService(repository)
+
+
 def get_post_service(
     sentence_repository: SentenceRepository = Depends(get_sentence_repository),
     book_repository: BookRepository = Depends(get_book_repository),
+    alarm_service: AlarmService = Depends(get_alarm_service),
 ) -> PostService:
-    return PostService(sentence_repository, book_repository)
+    return PostService(sentence_repository, book_repository, alarm_service)
 
 def get_post_controller(
         service: PostService = Depends(get_post_service)
@@ -87,3 +107,18 @@ def delete_sentence(
 ) -> DeleteSentenceResponse:
     controller.delete_sentence(dto)
     return DeleteSentenceResponse(result = "성공적으로 문장이 삭제되었습니다.")
+
+
+@router.get("/search", response_model=list[BookResponse], status_code=status.HTTP_200_OK)
+def search_books(
+    q: str,
+    controller: PostController = Depends(get_post_controller),
+) -> list[BookResponse]:
+    return controller.search_books(q)
+
+
+@router.get("/rank", response_model=list[BookResponse], status_code=status.HTTP_200_OK)
+def get_ranked_books(
+    controller: PostController = Depends(get_post_controller),
+) -> list[BookResponse]:
+    return controller.get_ranked_books()

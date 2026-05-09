@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
-from db.model import Book, Sentence, User
+from db.model import Book, Sentence, User, SentenceLikeUserMapping
 
 
 class SentenceRepository(ABC):
@@ -29,6 +29,18 @@ class BookRepository(ABC):
     @abstractmethod
     def find(self, id: int) -> Book:
         "해당 ID의 엔티티를 찾는 함수"
+
+    @abstractmethod
+    def get_users_who_like_book(self, book_id: int) -> list[int]:
+        "해당 작품을 좋아하는 사용자 ID 목록을 조회합니다."
+
+    @abstractmethod
+    def search_books(self, query: str) -> list[dict]:
+        "작품명 또는 작가명으로 책을 검색합니다."
+
+    @abstractmethod
+    def get_ranked_books(self) -> list[dict]:
+        "좋아요 순으로 정렬된 책 목록을 반환합니다."
 
 class PostgresqlSentenceRepository(SentenceRepository):
     """SQLAlchemy-backed implementation of the AuthorRepository."""
@@ -62,3 +74,62 @@ class PostgresqlBookRepository(BookRepository):
 
     def find(self, id: int) -> Book:
         return self.session.get(Book, id)
+
+    def get_users_who_like_book(self, book_id: int) -> list[int]:
+        rows = (
+            self.session.query(SentenceLikeUserMapping.user_id)
+            .join(Sentence, SentenceLikeUserMapping.sentence_id == Sentence.id)
+            .filter(Sentence.book_id == book_id)
+            .distinct()
+            .all()
+        )
+        return [row[0] for row in rows]
+
+    def search_books(self, query: str) -> list[dict]:
+        search_pattern = f"%{query}%"
+        books = (
+            self.session.query(Book, User.name.label("author_name"))
+            .join(User, Book.author_id == User.id)
+            .filter(
+                Book.name.ilike(search_pattern) |
+                User.name.ilike(search_pattern)
+            )
+            .order_by(Book.name.asc())
+            .all()
+        )
+
+        return [
+            {
+                "id": book.id,
+                "name": book.name,
+                "author_name": author_name,
+                "like_count": 0,
+            }
+            for book, author_name in books
+        ]
+
+    def get_ranked_books(self) -> list[dict]:
+        ranked = (
+            self.session.query(
+                Book.id,
+                Book.name,
+                User.name.label("author_name"),
+                func.count(SentenceLikeUserMapping.user_id).label("like_count")
+            )
+            .join(User, Book.author_id == User.id)
+            .outerjoin(Sentence, Sentence.book_id == Book.id)
+            .outerjoin(SentenceLikeUserMapping, SentenceLikeUserMapping.sentence_id == Sentence.id)
+            .group_by(Book.id, User.name)
+            .order_by(func.count(SentenceLikeUserMapping.user_id).desc())
+            .all()
+        )
+
+        return [
+            {
+                "id": book_id,
+                "name": book_name,
+                "author_name": author_name,
+                "like_count": like_count,
+            }
+            for book_id, book_name, author_name, like_count in ranked
+        ]

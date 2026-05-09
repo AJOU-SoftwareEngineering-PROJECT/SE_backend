@@ -1,13 +1,20 @@
 import re
-from db.model import Sentence
+from db.model import Sentence, AlarmType
 from post.repository import BookRepository, SentenceRepository
-from post.schemas import AddSentenceRequest, DeleteSenteceRequest, ModifySentenceRequest, PostChapterCreate
+from post.schemas import AddSentenceRequest, DeleteSenteceRequest, ModifySentenceRequest, PostChapterCreate, BookResponse
+from alarm.service import AlarmService
 
 
 class PostService:
-    def __init__(self, sentence_repository: SentenceRepository, book_repository: BookRepository):
+    def __init__(
+        self,
+        sentence_repository: SentenceRepository,
+        book_repository: BookRepository,
+        alarm_service: AlarmService = None,
+    ):
         self.sentence_repository = sentence_repository
         self.book_repository = book_repository
+        self.alarm_service = alarm_service
     
     def post_sentences(self, dto: PostChapterCreate) -> list[Sentence]:
         
@@ -36,12 +43,30 @@ class PostService:
             saved_sentences[i].after_id = saved_sentences[i + 1].id
             self.sentence_repository.update(saved_sentences[i])
 
+        if self.alarm_service:
+            liked_user_ids = self.book_repository.get_users_who_like_book(bookId)
+            if liked_user_ids:
+                self.alarm_service.create_alarms_bulk(
+                    liked_user_ids,
+                    AlarmType.NEW_CHAPTER,
+                    content="새 챕터가 공개되었습니다.",
+                    target_url=f"/books/{bookId}/chapters/{chapter}",
+                )
+
         return saved_sentences
             
     def modify_sentence(self, dto: ModifySentenceRequest) -> Sentence:
         sentence = self.sentence_repository.find(dto.sentenceId)
         sentence.content = dto.content
         return self.sentence_repository.update(sentence)
+
+    def search_books(self, query: str) -> list[BookResponse]:
+        books = self.book_repository.search_books(query)
+        return [BookResponse(**book) for book in books]
+
+    def get_ranked_books(self) -> list[BookResponse]:
+        books = self.book_repository.get_ranked_books()
+        return [BookResponse(**book) for book in books]
     
     def add_sentence(self, dto: AddSentenceRequest) -> Sentence:
         book = self.book_repository.find(dto.bookId)

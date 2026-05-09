@@ -30,3 +30,10 @@ class DeleteSenteceRequest:
 
 class DeleteSentenceResponse:
     result: str
+
+
+class BookResponse:
+    id: int
+    name: str
+    author_name: str
+    like_count: int = 0
