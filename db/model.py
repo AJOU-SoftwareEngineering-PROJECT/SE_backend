@@ -41,8 +41,12 @@ class Book(Timestamp):
     name = Column(String, nullable=False)
     intro = Column(String, nullable=False)
 
-
     author_id = Column(BIGINT, ForeignKey("users.id"))
+    sentences = relationship(
+        "Sentence",
+        back_populates="book",
+        cascade="all, delete-orphan",
+    )
 
 class Sentence(Timestamp):
     __tablename__ = "sentences"
@@ -60,6 +64,7 @@ class Sentence(Timestamp):
         remote_side=[id],
         uselist=False
     )
+    book = relationship("Book", back_populates="sentences")
     scraps = relationship("Scrap", back_populates="sentence", cascade="all, delete-orphan")
 
 class Scrap(Timestamp):
