@@ -1,7 +1,14 @@
 import re
 from db.model import Sentence, AlarmType
 from post.repository import BookRepository, SentenceRepository
-from post.schemas import AddSentenceRequest, DeleteSenteceRequest, ModifySentenceRequest, PostChapterCreate, BookResponse
+from post.schemas import (
+    AddSentenceRequest,
+    BookCreate,
+    BookResponse,
+    DeleteSentenceRequest,
+    ModifySentenceRequest,
+    PostChapterCreate,
+)
 from alarm.service import AlarmService
 
 
@@ -67,7 +74,29 @@ class PostService:
     def get_ranked_books(self) -> list[BookResponse]:
         books = self.book_repository.get_ranked_books()
         return [BookResponse(**book) for book in books]
-    
+
+    def create_book(self, dto: BookCreate) -> BookResponse:
+        book = self.book_repository.create(dto.model_dump())
+        author_name = self.book_repository.get_author_name(book.author_id)
+
+        return BookResponse(
+            id=book.id,
+            name=book.name,
+            author_name=author_name,
+            like_count=0,
+        )
+
+    def list_books(self) -> list[BookResponse]:
+        books = self.book_repository.find_all()
+        return [BookResponse(**book) for book in books]
+
+    def delete_book(self, book_id: int):
+        book = self.book_repository.find(book_id)
+        if book is None:
+            raise ValueError("Book not found")
+
+        self.book_repository.delete(book)
+
     def add_sentence(self, dto: AddSentenceRequest) -> Sentence:
         book = self.book_repository.find(dto.bookId)
         if book is None:
@@ -90,7 +119,7 @@ class PostService:
 
         return saved_sentence
     
-    def delete_sentence(self, dto: DeleteSenteceRequest):
+    def delete_sentence(self, dto: DeleteSentenceRequest):
         before = self.sentence_repository.find(dto.beforeId)
         sentence = self.sentence_repository.find(dto.sentenceId)
         before.after_id = sentence.after_id

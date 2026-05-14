@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from core.security import get_current_user
 from alarm.repository import AlarmRepository, PostgresqlAlarmRepository
 from alarm.service import AlarmService
 from db.database import get_db
@@ -36,10 +37,6 @@ def get_alarm_controller(
     service: AlarmService = Depends(get_alarm_service),
 ) -> AlarmController:
     return AlarmController(service)
-
-
-def get_current_user() -> int:
-    return 1
 
 
 @router.get("/unread", status_code=status.HTTP_200_OK)

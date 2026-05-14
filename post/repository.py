@@ -31,8 +31,24 @@ class BookRepository(ABC):
         "해당 ID의 엔티티를 찾는 함수"
 
     @abstractmethod
+    def create(self, book_data: dict) -> Book:
+        "Persist a new book and return the stored entity."
+
+    @abstractmethod
+    def delete(self, book: Book):
+        "Delete the specified book from persistence."
+
+    @abstractmethod
+    def find_all(self) -> list[dict]:
+        "Find all books with author metadata."
+
+    @abstractmethod
     def get_users_who_like_book(self, book_id: int) -> list[int]:
         "해당 작품을 좋아하는 사용자 ID 목록을 조회합니다."
+
+    @abstractmethod
+    def get_author_name(self, author_id: int) -> str:
+        "Resolve an author's display name by ID."
 
     @abstractmethod
     def search_books(self, query: str) -> list[dict]:
@@ -75,6 +91,35 @@ class PostgresqlBookRepository(BookRepository):
     def find(self, id: int) -> Book:
         return self.session.get(Book, id)
 
+    def create(self, book_data: dict) -> Book:
+        book = Book(**book_data)
+        self.session.add(book)
+        self.session.commit()
+        self.session.refresh(book)
+        return book
+
+    def delete(self, book: Book):
+        self.session.delete(book)
+        self.session.commit()
+
+    def find_all(self) -> list[dict]:
+        books = (
+            self.session.query(Book, User.name.label("author_name"))
+            .join(User, Book.author_id == User.id)
+            .order_by(Book.name.asc())
+            .all()
+        )
+
+        return [
+            {
+                "id": book.id,
+                "name": book.name,
+                "author_name": author_name,
+                "like_count": 0,
+            }
+            for book, author_name in books
+        ]
+
     def get_users_who_like_book(self, book_id: int) -> list[int]:
         rows = (
             self.session.query(SentenceLikeUserMapping.user_id)
@@ -84,6 +129,10 @@ class PostgresqlBookRepository(BookRepository):
             .all()
         )
         return [row[0] for row in rows]
+
+    def get_author_name(self, author_id: int) -> str:
+        author = self.session.get(User, author_id)
+        return author.name if author else ""
 
     def search_books(self, query: str) -> list[dict]:
         search_pattern = f"%{query}%"

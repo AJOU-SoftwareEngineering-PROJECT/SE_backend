@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from core.security import get_current_user
 from scrap.repository import ScrapRepository, PostgresqlScrapRepository
 from scrap.schemas import ScrapCreate, ScrapResponse
 from scrap.service import ScrapService
@@ -51,25 +52,6 @@ def get_scrap_controller(
 ) -> ScrapController:
     """Provide a ScrapController wired with dependencies."""
     return ScrapController(service)
-
-
-# TODO: JWT 의존성 주입으로 대체 예정
-# def get_current_user(token: str = Depends(oauth2_scheme)) -> int:
-#     """Extract user_id from JWT token."""
-#     # JWT 검증 로직
-#     return user_id
-
-def get_current_user() -> int:
-    """
-    Get current user_id (currently hardcoded).
-    TODO: Replace with JWT token extraction logic
-    Example:
-        def get_current_user(token: str = Depends(oauth2_scheme)) -> int:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = payload.get("sub")
-            return int(user_id)
-    """
-    return 1
 
 
 @router.post("", response_model=ScrapResponse, status_code=status.HTTP_201_CREATED)

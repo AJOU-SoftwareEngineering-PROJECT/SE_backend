@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from core.security import get_current_user
 from comment.repository import CommentRepository, PostgresqlCommentRepository
 from comment.schemas import CommentCreate, CommentResponse, SubCommentCreate, SubCommentResponse
 from comment.service import CommentService
@@ -17,11 +18,11 @@ class CommentController:
     def __init__(self, service: CommentService):
         self.service = service
 
-    def create_comment(self, sentence_id: int, comment: CommentCreate) -> CommentResponse:
+    def create_comment(self, sentence_id: int, comment: CommentCreate, user_id: int) -> CommentResponse:
         """Create a new comment for a given sentence."""
         comment_data = {
             "content": comment.content,
-            "user_id": 1,
+            "user_id": user_id,
             "sentence_id": sentence_id,
         }
 
@@ -44,11 +45,11 @@ class CommentController:
             
         return result
 
-    def create_subcomment(self, comment_id: int, subcomment: SubCommentCreate) -> SubCommentResponse:
+    def create_subcomment(self, comment_id: int, subcomment: SubCommentCreate, user_id: int) -> SubCommentResponse:
         """Create a subcomment for an existing parent comment."""
         subcomment_data = {
             "content": subcomment.content,
-            "user_id": 1,
+            "user_id": user_id,
             "comment_id": comment_id,
         }
 
@@ -97,9 +98,10 @@ def create_comment(
     sentence_id: int,
     comment: CommentCreate,
     controller: CommentController = Depends(get_comment_controller),
+    user_id: int = Depends(get_current_user),
 ):
     """REST endpoint to create a comment for a sentence."""
-    return controller.create_comment(sentence_id, comment)
+    return controller.create_comment(sentence_id, comment, user_id)
 
 @router.get("/{sentence_id}/comments", response_model=list[CommentResponse], status_code=status.HTTP_200_OK)
 def get_comments_by_sentence(
@@ -114,9 +116,10 @@ def create_subcomment(
     comment_id: int,
     subcomment: SubCommentCreate,
     controller: CommentController = Depends(get_comment_controller),
+    user_id: int = Depends(get_current_user),
 ):
     """REST endpoint to create a subcomment for a given comment."""
-    return controller.create_subcomment(comment_id, subcomment)
+    return controller.create_subcomment(comment_id, subcomment, user_id)
 
 @subcomment_router.get("/{comment_id}/subcomments", response_model=list[SubCommentResponse], status_code=status.HTTP_200_OK, summary="List subcomments", description="특정 댓글의 대댓글 목록을 등록순(id 오름차순)으로 조회합니다.")
 def get_subcomments_by_comment(
