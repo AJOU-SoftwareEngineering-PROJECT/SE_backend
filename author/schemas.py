@@ -13,6 +13,7 @@ class AuthorBase(BaseModel):
 
 class AuthorCreate(AuthorBase):
     """Payload required to register an author."""
+    password: str
 
 
 class AuthorResponse(AuthorBase):

@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlite3 import Connection as SQLite3Connection
 
+from core.security import get_current_user
 from db.database import Base, get_db
 from db.model import User, Book, Sentence, Scrap, Gender
 from main import app
@@ -114,7 +115,7 @@ def test_create_scrap_success(client, setup_data, session):
     # Verify in DB
     scrap = session.get(Scrap, data["id"])
     assert scrap is not None
-    assert scrap.user_id == 1  # Hardcoded in controller
+    assert scrap.user_id == setup_data["user"].id  # Check actual user_id from setup
     assert scrap.sentence_id == sentence_id
 
 def test_create_duplicate_scrap_fails(client, setup_data, session):
@@ -142,12 +143,8 @@ def test_delete_others_scrap_fails(client, setup_data, session):
     """
     시나리오 C: 다른 사용자의 스크랩을 삭제하려고 할 때 권한 에러 -> 403 Forbidden.
     
-    User 1이 스크랩을 생성하고, User 1이 아닌 다른 사용자가 삭제하려고 하면:
+    User 1이 스크랩을 생성하고, User 2가 삭제하려고 하면:
     - 403 Forbidden (본인의 스크랩만 삭제할 수 있습니다.)
-    
-    주의: 현재는 get_current_user()가 항상 user_id=1을 반환하므로,
-    이 테스트는 향후 JWT 도입 후 get_current_user()를 mock하여 user_id=2로 변경할 때
-    실제로 작동합니다.
     """
     sentence_id = setup_data["sentence"].id
     scrap_data = {"sentence_id": sentence_id}
@@ -157,17 +154,18 @@ def test_delete_others_scrap_fails(client, setup_data, session):
     assert response.status_code == 201
     scrap_id = response.json()["id"]
 
-    # 현재: get_current_user()가 항상 1을 반환하므로 실제 권한 검증은 불가능
-    # TODO: JWT 도입 후 get_current_user() mock 추가
-    # 예시: 
-    # def mock_get_current_user() -> int:
-    #     return 2  # User 2로 변경
-    # app.dependency_overrides[get_current_user] = mock_get_current_user
-    
-    # 현재 상황에서는 아래 테스트 코드로 비즈니스 로직 검증만 가능:
-    # - service.delete_scrap() 직접 호출로 권한 검증 테스트
-    from scrap.service import ScrapService
-    from scrap.repository import PostgresqlScrapRepository
+    # User 2로 변경하여 삭제 시도
+    def mock_get_current_user() -> int:
+        return 2  # User 2
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+
+    try:
+        response = client.delete(f"/scraps/{scrap_id}")
+        assert response.status_code == 403
+        assert "본인의 스크랩만 삭제할 수 있습니다" in response.json()["detail"]
+    finally:
+        # Reset override
+        app.dependency_overrides.pop(get_current_user, None)
     
     repository = PostgresqlScrapRepository(session)
     service = ScrapService(repository)

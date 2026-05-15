@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlite3 import Connection as SQLite3Connection
 
+from core.security import get_current_user
 from db.database import Base, get_db
 from db.model import User, Book, Sentence, Comment, Gender
 from main import app
@@ -85,7 +86,6 @@ def test_create_comment_success(client, setup_data, session):
     assert response.status_code == 201
     data = response.json()
     assert data["content"] == comment_data["content"]
-    assert data["user_id"] == 1  # Hardcoded in controller
     assert data["sentence_id"] == sentence_id
     assert "id" in data
 
@@ -93,6 +93,7 @@ def test_create_comment_success(client, setup_data, session):
     comment = session.get(Comment, data["id"])
     assert comment is not None
     assert comment.content == comment_data["content"]
+    assert comment.user_id == setup_data["user"].id  # Check actual user_id from setup
 
 def test_get_comments_order(client, setup_data):
     """시나리오 B: 댓글 2개 작성 후 GET -> 200 OK, 나중에 쓴 댓글이 먼저(내림차순)."""

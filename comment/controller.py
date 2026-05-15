@@ -132,7 +132,8 @@ def get_subcomments_by_comment(
 @subcomment_router.post("/{comment_id}/likes", status_code=status.HTTP_200_OK, summary="Toggle comment like", description="특정 댓글에 대해 좋아요를 토글합니다. 이미 좋아요를 누른 경우 취소하고 false를 반환합니다.")
 def toggle_comment_like(
     comment_id: int,
+    user_id: int = Depends(get_current_user),
     controller: CommentController = Depends(get_comment_controller),
 ):
-    """REST endpoint to toggle like for a given comment (user_id=1 hardcoded)."""
-    return controller.toggle_comment_like(comment_id, user_id=1)
+    """REST endpoint to toggle like for a given comment."""
+    return controller.toggle_comment_like(comment_id, user_id)

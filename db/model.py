@@ -30,6 +30,7 @@ class User(Timestamp):
     age = Column(Integer, nullable=False)
     intro = Column(Text, nullable=False)
     email = Column(String(50), nullable=False)
+    password = Column(String(255), nullable=False)
     scraps = relationship("Scrap", back_populates="user", cascade="all, delete-orphan")
     alarms = relationship("Alarm", back_populates="user", cascade="all, delete-orphan")
 
